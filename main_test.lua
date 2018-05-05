@@ -30,7 +30,7 @@ end
 
 modelpara = 'All_paddedImage_weightDecay1e-5_NoFlip_weight'
 
-net = torch.load('/home/zxw/Baidu/TrainedModel/'..modelpara..'/100Class_ResNet10000iteration.t7')   --0.9173
+net = torch.load('/home/zxw/Baidu/TrainedModel/'..modelpara..'/100Class_ResNet10000iteration.t7')   -- the directory which save the model
 
 csvf = csv.File(modelpara..'10000_result.csv', "w"," ")
 txtf = io.open(modelpara..'10000_NoFlip_result.txt','w')

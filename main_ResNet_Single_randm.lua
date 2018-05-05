@@ -8,8 +8,8 @@ require 'gnuplot'
 require 'cutorch'
 require 'hzproc'
 
-trainGT = torch.load('/home/zxw/Baidu/cache/trainGT.t7')
-trainPath = torch.load('/home/zxw/Baidu/cache/trainPath.t7')
+trainGT = torch.load('/home/zxw/Baidu/cache/trainGT.t7')              -- this table contains the name of the images 
+trainPath = torch.load('/home/zxw/Baidu/cache/trainPath.t7')          -- the label of each image
 testGT = torch.load('/home/zxw/Baidu/cache/testGT.t7')
 testPath = torch.load('/home/zxw/Baidu/cache/testPath.t7')
 
@@ -22,9 +22,9 @@ batchsize = 32
 imgpath = paths.concat('/home/zxw/Baidu/datasets/paddedImage','%s')
 model_path = '/home/zxw/Baidu/ResNet.lua'
 
-model_opt = {}
-pretrain = '/home/zxw/fast-rcnn-torch/models/ResNet/resnet-101-100c.t7'
-model_save_path = '/home/zxw/Baidu/TrainedModel/ResNet5e-4_NoFlip/'
+model_opt = {} 
+pretrain = '/home/zxw/fast-rcnn-torch/models/ResNet/resnet-101-100c.t7'   -- pretrain file which download from https://github.com/facebook/fb.resnet.torch
+model_save_path = '/home/zxw/Baidu/TrainedModel/ResNet5e-4_NoFlip/'	  -- the final fc layer nn.Linear(2048,1000) is replaced by nn.Linear(2048,100)
 
 
 annotype = 'modelID'
@@ -35,6 +35,7 @@ if annotype == 'modelID'  then
 else
        model_opt.classnumber = 7
 end
+
 local accuracy = {}
 -- Annotation Fetcher
 
