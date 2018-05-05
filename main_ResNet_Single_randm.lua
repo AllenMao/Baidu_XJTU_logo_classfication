@@ -7,6 +7,7 @@ require 'optim'
 require 'gnuplot'
 require 'cutorch'
 require 'hzproc'
+
 trainGT = torch.load('/home/zxw/Baidu/cache/trainGT.t7')
 trainPath = torch.load('/home/zxw/Baidu/cache/trainPath.t7')
 testGT = torch.load('/home/zxw/Baidu/cache/testGT.t7')
@@ -25,7 +26,7 @@ model_opt = {}
 pretrain = '/home/zxw/fast-rcnn-torch/models/ResNet/resnet-101-100c.t7'
 model_save_path = '/home/zxw/Baidu/TrainedModel/ResNet5e-4_NoFlip/'
 
-model_opt.depth = 101
+
 annotype = 'modelID'
 batchnum_in_one_epoch=#trainPath/batchsize
 
@@ -66,29 +67,18 @@ function trainN(MaxEpoch,batchsize)
     index = 1
     while iter<TotalIter do
         -- preparing a batch for network
-	local shx = math.random(2, 5)/10
-	local shy = math.random(2, 5)/10																				
+																				
         for t = 1,batchsize do	
 
             local temp = getImage(trainPath[shuffle[index]])
 
-            Targets[t] = tonumber(trainGT[trainPath[shuffle[index]]])    --change here for different attributes
-
-	    --mat = hzproc.Affine.Shear(shx, shy)
-            --temp = hzproc.Transform.Fast(temp:cuda(), mat:cuda())
+            Targets[t] = tonumber(trainGT[trainPath[shuffle[index]]])    --change here for different attribu
 
 	    temp = ImageColorAug(temp)
             temp = ImageSharpnessAug(temp)
 
-            local r = (rand_r - 0.5)*math.pi/2
+            local r = (rand_r - 0.5)*math.pi/3
             temp = image.rotate(temp, r)   
-            -- temp:mul(2):add(-1)
-            -- flip the image in horizontal
-
-            --[[local flip = math.random(2)-1
-            if flip == 1 then
-                        temp = image.hflip(temp)
-            end--]]
 
             inputs[{{t},{},{},{}}] = image.scale(temp,224,224)
             index = index + 1
@@ -110,30 +100,25 @@ function trainN(MaxEpoch,batchsize)
         local err
         feval = function(x)
             net:zeroGradParameters()
-
             local outputs = net:forward(inputs:cuda())
-
             err = criterion:forward(outputs:cuda(),Targets:cuda())
             local err_out = criterion:backward(outputs:cuda(),Targets:cuda()) 
 	     net:backward(inputs,err_out)
 	     --print(gradParameters:sum())
 	     return err, gradParameters
-	 end
+	end
 
         optim.sgd(feval,parameters,sgd_params)
 
         iter = iter+1
         sum_loss = sum_loss+err
-        --sum_model_loss = sum_model_loss+model_err
 	rand_r = math.random()
+
         if iter%100==0 then
-            --index = iter/10
-            --Loss[index] = sum_loss/30
-            --ModelLoss[index] = sum_model_loss/20
             print(string.format('Iteration = %d, Classification Loss = %2.4f',iter,sum_loss/100))
             sum_loss = 0
-            --sum_model_loss = 0
-        end        
+        end
+        
 	--test for every 16 epoch
         if iter%1000==0 then
 
@@ -143,49 +128,40 @@ function trainN(MaxEpoch,batchsize)
       	    collectgarbage()
  		-- validate
 		net:evaluate()
-		local picnum = 0
 		local Suc = 0
 		--print(#testPath)
-		while picnum < #testPath do
-		      local rest 
-		      rest = #testPath - picnum 
-		      if rest <= 32 then
-		                   batchsize = rest
-		      else
-		                   batchsize = 32
-		      end
-		      --print(batchsize)   
-		      local inputs = torch.CudaTensor(batchsize,3,224,224)
-		      local Predict = torch.CudaTensor(batchsize)
-		      local Targets = torch.CudaLongTensor(batchsize)
+		for i = 1, #testPath do
 
-		      for t = 1,batchsize do
-		                  picnum = picnum + 1
-		                  local temp = getImage(testPath[picnum])
-		                  Targets[t] = tonumber(testGT[testPath[picnum]])
-		                  inputs[{{t},{},{},{}}] =image.scale(temp,224,224)
+		      --print(batchsize)   
+		      local inputs = torch.CudaTensor(1,3,224,224)
+		      local Predict = torch.CudaTensor(1)
+		      local Targets = torch.CudaLongTensor(1)
+
+		      for t = 1,1 do
+				  local temp = getImage(testPath[i])
+				  Targets[t] = testGT[testPath[i]]
+				  inputs[{{t},{},{},{}}] =image.scale(temp,224,224)
 		      end
 		      for i=1,3 do -- over each image channel
-		                  mean=inputs[{ {}, {i}, {} ,{}  }]:mean() -- mean estimation
-		                  inputs[{ {}, {i}, {}, {}  }]:add(-mean) -- mean subtraction
+				  mean=inputs[{ {}, {i}, {} ,{}  }]:mean() -- mean estimation
+				  inputs[{ {}, {i}, {}, {}  }]:add(-mean) -- mean subtraction
 		      end
 		      outputs = net:forward(inputs:cuda())
 		      _,Predict = torch.max(outputs,2)
-		      --Predict:add(-1)
-		      --print(Predict,Targets)
 		      Suc = Suc + ((Predict:view(-1)):eq(Targets):sum())
---		      torch.setdefaulttensortype('torch.CudaTensor')
 		end
+
                 print(string.format('Classification = %d,  Classification Pricision  = %f',Suc, Suc/#testPath))  	
 		table.insert(accuracy,(1-Suc/#testPath))
+
 		if sgd_params.learningRate < 1e-5  then
           	    opt_conf.learningRateDecay = 0
         	end
 
-	        if iter %10000== 0 then
+	        if iter %5000== 0 then
 
 		     gnuplot.pngfigure('/home/zxw/Baidu/TrainedModel/ResNet5e-4_NoFlip/'.. iter..'_test.png')
-		     gnuplot.axis{'','',0,4}
+		     gnuplot.axis{'','',0,0.2}
 
                      torch.setdefaulttensortype('torch.FloatTensor')
 		     gnuplot.plot('Accuracy',torch.Tensor(accuracy))
