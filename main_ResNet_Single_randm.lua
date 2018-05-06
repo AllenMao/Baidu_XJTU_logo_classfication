@@ -13,18 +13,20 @@ trainPath = torch.load('/home/zxw/Baidu/cache/trainPath.t7')          -- the lab
 testGT = torch.load('/home/zxw/Baidu/cache/testGT.t7')
 testPath = torch.load('/home/zxw/Baidu/cache/testPath.t7')
 
+weight = torch.load('/home/zxw/Baidu_XJTU_logo_classfication/cache/train_weight.t7')
+
 MaxEpoch = 1920
-batchsize = 32
+batchsize = 4
 
     torch.setdefaulttensortype('torch.CudaTensor')
 
 -- set paths
 imgpath = paths.concat('/home/zxw/Baidu/datasets/paddedImage','%s')
-model_path = '/home/zxw/Baidu/ResNet.lua'
+model_path = '/home/zxw/Baidu_XJTU_logo_classfication/ResNet.lua'
 
 model_opt = {} 
-pretrain = '/home/zxw/fast-rcnn-torch/models/ResNet/resnet-101-100c.t7'   -- pretrain file which download from https://github.com/facebook/fb.resnet.torch
-model_save_path = '/home/zxw/Baidu/TrainedModel/ResNet5e-4_NoFlip/'	  -- the final fc layer nn.Linear(2048,1000) is replaced by nn.Linear(2048,100)
+pretrain = '/home/zxw/fast-rcnn-torch/models/ResNet/resnext_101_64x4d-100c.t7'   -- pretrain file which download from https://github.com/facebookresearch/ResNeXt
+model_save_path = '/home/zxw/Baidu/TrainedModel/ResNet5e-4_NoFlip_batch4/'	  -- the final fc layer nn.Linear(2048,1000) is replaced by nn.Linear(2048,100)
 
 
 annotype = 'modelID'
@@ -67,22 +69,20 @@ function trainN(MaxEpoch,batchsize)
     iter = 0
     index = 1
     while iter<TotalIter do
-        -- preparing a batch for network
-																				
+        -- preparing a batch for network																			
         for t = 1,batchsize do	
 
             local temp = getImage(trainPath[shuffle[index]])
-
             Targets[t] = tonumber(trainGT[trainPath[shuffle[index]]])    --change here for different attribu
 
 	    temp = ImageColorAug(temp)
             temp = ImageSharpnessAug(temp)
-
             local r = (rand_r - 0.5)*math.pi/3
             temp = image.rotate(temp, r)   
 
-            inputs[{{t},{},{},{}}] = image.scale(temp,224,224)
+            inputs[{{t},{},{},{}}] = image.scale(temp,224,224)           --rescale and load this picture
             index = index + 1
+
             if index == #trainPath then
                          index = 1
                          torch.setdefaulttensortype('torch.FloatTensor')
@@ -121,12 +121,13 @@ function trainN(MaxEpoch,batchsize)
         end
         
 	--test for every 16 epoch
-        if iter%1000==0 then
+        if iter%2000==0 then
 
             --Epoch = Epoch+4
-            net:clearState() 
-            torch.save(model_save_path..model_opt.classnumber..'Class_'..'ResNet' ..iter..'iteration' .. '.t7',net)
-      	    collectgarbage()
+                net:clearState() 
+                torch.save(model_save_path..model_opt.classnumber..'Class_'..'ResNet' ..iter..'iteration' .. '.t7',net)
+      	        collectgarbage()
+
  		-- validate
 		net:evaluate()
 		local Suc = 0
@@ -161,7 +162,7 @@ function trainN(MaxEpoch,batchsize)
 
 	        if iter %5000== 0 then
 
-		     gnuplot.pngfigure('/home/zxw/Baidu/TrainedModel/ResNet5e-4_NoFlip/'.. iter..'_test.png')
+		     gnuplot.pngfigure('/home/zxw/Baidu/TrainedModel/ResNet5e-4_NoFlip_batch4/'.. iter..'_test.png')
 		     gnuplot.axis{'','',0,0.2}
 
                      torch.setdefaulttensortype('torch.FloatTensor')
@@ -172,7 +173,7 @@ function trainN(MaxEpoch,batchsize)
 
 
   		     local curves ={}
-		     torch.save(paths.concat('/home/zxw/Baidu/TrainedModel/ResNet5e-4_NoFlip', iter..'Result.t7'), accuracy)
+		     torch.save(paths.concat('/home/zxw/Baidu/TrainedModel/ResNet5e-4_NoFlip_batch4', iter..'Result.t7'), accuracy)
 
 	        end
             	net:training()
@@ -221,7 +222,7 @@ end
 net = dofile(model_path)()   
 
 parameters,gradParameters = net:getParameters()
-criterion = nn.CrossEntropyCriterion()
+criterion = nn.CrossEntropyCriterion(weight:cuda())
 
 sgd_params = {  
        learningRate = 1e-2, 

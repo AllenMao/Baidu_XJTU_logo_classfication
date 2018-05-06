@@ -14,7 +14,7 @@ batchsize = 1
 torch.setdefaulttensortype('torch.CudaTensor')
 
 -- set paths
-imgpath = paths.concat('/home/zxw/Baidu/Test_PaddedImage/','%s')
+imgpath = paths.concat('/home/zxw/Baidu/datasets/Test_PaddedImage/','%s')
 
 model_opt = {}
 
@@ -28,17 +28,17 @@ function getImagePath(i)
   return string.format(imgpath,i)
 end
 
-modelpara = 'All_paddedImage_weightDecay1e-5_NoFlip_weight'
+modelpara = 'ResNet5e-4_NoFlip'
 
-net = torch.load('/home/zxw/Baidu/TrainedModel/'..modelpara..'/100Class_ResNet10000iteration.t7')   -- the directory which save the model
+net = torch.load('/home/zxw/Baidu/TrainedModel/'..modelpara..'/100Class_ResNet1000iteration.t7')   -- the directory which save the model
 
-csvf = csv.File(modelpara..'10000_result.csv', "w"," ")
-txtf = io.open(modelpara..'10000_NoFlip_result.txt','w')
+csvf = csv.File(modelpara..'1000_result.csv', "w"," ")
+txtf = io.open(modelpara..'1000_NoFlip_result.txt','w')
 --[[for i = 1,100 do
      os.execute('mkdir /data/Cmp/datasets/Classifier/'..i)
 end
 --]]
-for data in io.lines('/data/Cmp/datasets/test/imagename.txt') do
+for data in io.lines('/home/zxw/Baidu/datasets/test/imagename.txt') do
       --print(batchsize)   
       local inputs = torch.CudaTensor(batchsize,3,224,224)
       local Predict = torch.CudaTensor(batchsize)
@@ -59,7 +59,6 @@ for data in io.lines('/data/Cmp/datasets/test/imagename.txt') do
       --os.execute('cp /data/Cmp/datasets/test/'..data..' /data/Cmp/datasets/Classifier/'..torch.squeeze(Predict)..'/'..data)
       --image.save(,temp)
       csvf:write({data, torch.squeeze(Predict)})
-      --Suc = Suc + ((Predict:view(-1)):eq(Targets):sum())
 end
 txtf:close()
 csvf:close()
